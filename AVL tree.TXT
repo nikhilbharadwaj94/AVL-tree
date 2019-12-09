@@ -1,0 +1,1095 @@
+//HW5  AVL Tree
+//Due: Friday (Nov. 8) at 11:59PM
+//55 points
+//This homework requires more efforts. You should get started as soon as possible.
+
+#include <iostream> //to use cout
+#include <algorithm> //to use max function such as  i = max(a, b);
+
+using namespace std;
+
+//You need to use the following node class for each node of the AVL tree
+class node {
+public:
+	int value;
+	int height;//this is tree height. Leaf node is 1; empty node (i.e., NIL) is 0
+	node* parent;
+	node* l_child;
+	node* r_child;
+	node() {}
+	node(int i) { value = i; height = 1; parent = l_child = r_child = nullptr; }
+
+};
+
+class avl_tree {
+public:
+	node* root;
+	avl_tree() {
+		root = nullptr;
+	}
+
+	//************************************************************************************
+	//Implement the following member functions
+	void add_node(int i) {
+		//if case of a tie, add i to the last of existing nodes with value i in the in-order sequence
+		pair<node*, int> actionNode;
+		//cout << "\nInside add_node function value=" << i << endl;;
+		if (root == nullptr) {
+			node* rootNode = new node(i);
+			root = rootNode;
+			//root->value = i;
+		}
+		else {
+			//Write the case when root is not Null. Here we have to traverse the tree according to BST rules and insert the node IN ORDER
+			if (root != nullptr) {
+				node* traverse;
+				traverse = root;
+				node* inode = new node(i);//inode stands for insertNode
+				//inode->value = i;
+				while (true) {
+					if (i < traverse->value) {
+						if (traverse->l_child == nullptr) {//This means l_child is a nil node
+							inode->parent = traverse;
+							traverse->l_child = inode;
+							//traverse->l_child->height = 1; COMMENTED because it will be 1 by default according to the constructor
+							actionNode = height_update(traverse->l_child);
+							break;//breaking out of while once the insert operation is completed
+
+						}
+						else {
+							traverse = traverse->l_child;
+						}
+					}
+					else {//else is executed if i >= traverse->value
+						if (traverse->r_child == nullptr) {//This means r_child is a nil node
+							inode->parent = traverse;
+							traverse->r_child = inode;
+							actionNode = height_update(traverse->r_child);
+							break;//breaking out of while once the insert operation is completed
+						}
+						else {
+							traverse = traverse->r_child;
+						}
+					}
+				}//outside while
+			}
+		}
+		//outside if else. By now we will have actionNode value and we have to check for any violations and make the appropriate adjustments
+		if (actionNode.first == nullptr) {//This will mean no violation has occured
+			return;
+		}
+		else {//This means violation has occured
+			node* leftHeightUpdate, * rightHeightUpdate;
+			if (actionNode.second == 1) {//RR
+				L_Rotate(actionNode.first);
+			}
+			else if (actionNode.second == 2) {//RL
+				R_Rotate(actionNode.first->r_child);
+				L_Rotate(actionNode.first);
+			}
+			else if (actionNode.second == 3) {//LL
+				R_Rotate(actionNode.first);
+			}
+			else {//LR
+				L_Rotate(actionNode.first->l_child);
+				R_Rotate(actionNode.first);
+			}
+
+		}
+	}
+
+	void delete_node(int i) {
+		//cout << "\nInside delete_node function value=" << i << endl;;
+		/*Steps to delete:-
+		 starting from the root find i
+			if found then
+				1.check if it is the first occurance i.e check if the same value is in its left subtree as well. If yes then that should be the node to be deleted
+				2.replace the node to be deleted with predecessor or successor
+				3.update height
+			else Do nothing
+			*/
+		pair<node*, int> actionNode1, actionNode2;
+		node* leftHeightUpdate, * rightHeightUpdate;
+		leftHeightUpdate = nullptr;//initial state
+		rightHeightUpdate = nullptr;//initial state
+		actionNode1.first = nullptr;//initial state
+		actionNode2.first = nullptr;//initial state
+		node* traverse = root;
+		node* nodeToBeDeleted = nullptr;
+		node* ref;
+		node* predecessor, * successor, * new_predecessor, * new_successor; //I will be using *new_predecessor and *new_successor value to recalculate the height
+		predecessor = nullptr; successor = nullptr;
+		while (true) {
+			if (i == traverse->value) {
+				nodeToBeDeleted = traverse;
+				//here we have to add the condition that it should be the leftmost node i.e to delete the first occurance in the node
+				if (i <= traverse->value) {
+					if (traverse->l_child == nullptr) {//This means l_child is a nil node
+						//This means nothing else is there on the left side which means that the node with value i does not exist in the tree so we will just break
+						if (i == traverse->value)
+							nodeToBeDeleted = traverse;
+						break;
+					}
+					else {
+						traverse = traverse->l_child;
+					}
+				}
+				else {//else is executed if i > traverse->value
+					if (traverse->r_child == nullptr) {//This means r_child is a nil node
+						//This means nothing else is there on the right side which means that the node with value i does not exist in the tree so we will just break
+						break;
+					}
+					else {
+						traverse = traverse->r_child;
+					}
+				}
+			}
+			if (i <= traverse->value) {
+				if (traverse->l_child == nullptr) {//This means l_child is a nil node
+					//This means nothing else is there on the left side which means that the node with value i does not exist in the tree so we will just break
+					if (i == traverse->value)
+						nodeToBeDeleted = traverse;
+					break;
+				}
+				else {
+					traverse = traverse->l_child;
+				}
+			}
+			else {//else is executed if i > traverse->value
+				if (traverse->r_child == nullptr) {//This means r_child is a nil node
+					//This means nothing else is there on the right side which means that the node with value i does not exist in the tree so we will just break
+					break;
+				}
+				else {
+					traverse = traverse->r_child;
+				}
+			}
+		}//By this point we have found the position of the node to be deleted
+		if (nodeToBeDeleted == nullptr) {
+			//cout << "NodeToBeDeleted not found\n";
+			return;// Basically the node with value I wasnt found so we will do nothing
+		}
+		else {
+			ref = nodeToBeDeleted->parent;
+			if (nodeToBeDeleted == root && nodeToBeDeleted->l_child == nullptr && nodeToBeDeleted->r_child == nullptr) {
+				root = nullptr;
+			}
+			else if (nodeToBeDeleted == root && nodeToBeDeleted->l_child == nullptr && nodeToBeDeleted->r_child != nullptr) {
+				ref = nodeToBeDeleted->parent;
+				root = nodeToBeDeleted->r_child;
+				nodeToBeDeleted->r_child->parent = nullptr;
+				nodeToBeDeleted->r_child = nullptr;
+				root->height = 1;
+
+			}
+			else if (nodeToBeDeleted == root && nodeToBeDeleted->l_child != nullptr && nodeToBeDeleted->r_child == nullptr) {
+				ref = nodeToBeDeleted->parent;
+				root = nodeToBeDeleted->l_child;
+				nodeToBeDeleted->l_child->parent = nullptr;
+				nodeToBeDeleted->l_child = nullptr;
+				root->height = 1;
+			}
+			else {//It will handle all other cases
+				//first we will find the predecessor and successor
+				ref = nodeToBeDeleted->parent;
+				predecessor = nodeToBeDeleted->l_child;
+				if (predecessor != nullptr) {
+					while (true) {
+						if (predecessor->r_child != nullptr) {
+							predecessor = predecessor->r_child;
+						}
+						else {
+							break; //if there are no more right childs then the current predecessor is the max value on L_child and so we will replace it with the nodeToBeDeleted
+						}
+					}//By this point we have both predecessor and node to be deleted
+				}
+				successor = nodeToBeDeleted->r_child;
+				if (successor != nullptr) {
+					while (true) {
+						if (successor->l_child != nullptr) {
+							successor = successor->l_child;
+						}
+						else {
+							break; //if there are no more left childs then the current successor is the min value on R_child and so we will replace it with the nodeToBeDeleted
+						}
+					}//By this point we have both successor and node to be deleted
+				}
+				if (nodeToBeDeleted->l_child == nullptr && nodeToBeDeleted->r_child == nullptr) {
+					if (nodeToBeDeleted == nodeToBeDeleted->parent->l_child) {
+						//left leaf node
+						ref = nodeToBeDeleted->parent;
+						if (nodeToBeDeleted->parent->r_child == nullptr) {
+							nodeToBeDeleted->parent->height = 1;
+							nodeToBeDeleted->parent->l_child = nullptr;
+							nodeToBeDeleted->parent = nullptr;
+							if (ref != root) {
+								leftHeightUpdate = ref->parent->l_child;
+								rightHeightUpdate = ref->parent->r_child;
+							}
+							else {
+								leftHeightUpdate = ref->l_child;
+								rightHeightUpdate = ref->r_child;
+							}
+						}
+						else {
+							nodeToBeDeleted->parent->l_child = nullptr;
+							nodeToBeDeleted->parent = nullptr;
+							if (ref != root) {
+								leftHeightUpdate = ref->l_child;
+								rightHeightUpdate = ref->parent->r_child;
+							}
+							else {
+								leftHeightUpdate = ref->l_child;
+								rightHeightUpdate = ref->r_child;
+							}
+						}
+					}
+					else {
+						//it has to be the right leaf node
+						ref = nodeToBeDeleted->parent;
+						if (nodeToBeDeleted->parent->l_child == nullptr) {
+							nodeToBeDeleted->parent->height = 1;
+							nodeToBeDeleted->parent->r_child = nullptr;
+							nodeToBeDeleted->parent = nullptr;
+							if (ref != root) {
+								leftHeightUpdate = ref->parent->l_child;
+								rightHeightUpdate = ref->parent->r_child;
+							}
+							else {
+								leftHeightUpdate = ref->l_child;
+								rightHeightUpdate = ref->r_child;
+							}
+
+						}
+						else {
+							nodeToBeDeleted->parent->r_child = nullptr;
+							nodeToBeDeleted->parent = nullptr;
+							if (ref != root) {
+								leftHeightUpdate = ref->parent->l_child;
+								rightHeightUpdate = ref->parent->r_child;
+							}
+							else {
+								leftHeightUpdate = ref->l_child;
+								rightHeightUpdate = ref->r_child;
+							}
+						}
+					}
+				}
+				else if (nodeToBeDeleted->l_child != nullptr && nodeToBeDeleted->r_child == nullptr) {
+					ref = nodeToBeDeleted->parent;
+					nodeToBeDeleted->value = nodeToBeDeleted->l_child->value;
+					nodeToBeDeleted->height = 1;
+					nodeToBeDeleted->l_child->parent = nullptr;
+					nodeToBeDeleted->l_child = nullptr;
+					leftHeightUpdate = ref->l_child;
+					rightHeightUpdate = ref->r_child;
+				}
+				else if (nodeToBeDeleted->l_child == nullptr && nodeToBeDeleted->r_child != nullptr) {
+					ref = nodeToBeDeleted->parent;
+					nodeToBeDeleted->value = nodeToBeDeleted->r_child->value;
+					nodeToBeDeleted->height = 1;
+					nodeToBeDeleted->r_child->parent = nullptr;
+					nodeToBeDeleted->r_child = nullptr;
+					leftHeightUpdate = ref->l_child;
+					rightHeightUpdate = ref->r_child;
+				}
+				else {
+					//both children are present
+					if (nodeToBeDeleted->l_child->height >= nodeToBeDeleted->r_child->height) {
+						//replace predecessor
+						//cout << "replacing predecessor\n";
+						nodeToBeDeleted->value = predecessor->value;
+						if (predecessor->l_child == nullptr && predecessor->r_child == nullptr) {
+							//This means that it is the rightmost node
+							if (predecessor->parent->l_child != nullptr) {
+								new_predecessor = predecessor->parent->parent;
+
+							}
+							else {
+								new_predecessor = predecessor->parent->parent;
+								predecessor->parent->height = 1;
+							}
+							predecessor->parent->r_child = nullptr;
+							predecessor->parent = nullptr;
+						}
+						else {
+							//only possibility is that predecessor has a left child
+							predecessor->value = predecessor->l_child->value;
+							predecessor->l_child->parent = nullptr;
+							predecessor->l_child = nullptr;
+							predecessor->height = 1;
+							new_predecessor = predecessor->parent;
+						}
+						if (nodeToBeDeleted == root) {
+							root = nodeToBeDeleted;
+							new_predecessor = root;
+							leftHeightUpdate = root;
+							rightHeightUpdate = new_predecessor->r_child;
+						}
+						else {
+							leftHeightUpdate = new_predecessor->l_child;
+							rightHeightUpdate = new_predecessor->r_child;
+						}
+
+					}
+					else {
+						//we will have to replace the successor
+						//cout << "replacing successor\n";
+						nodeToBeDeleted->value = successor->value;
+						if (successor->l_child == nullptr && successor->r_child == nullptr) {
+							if (successor->parent->r_child != nullptr) {
+								new_successor = successor->parent;
+							}
+							else {
+								new_successor = successor->parent->parent;
+								successor->parent->height = 1;
+							}
+						}
+						else {
+							//The only possibility is that successor has a right child
+							successor->value = successor->r_child->value;
+							successor->r_child->parent = nullptr;
+							successor->r_child = nullptr;
+							successor->height = 1;
+							new_successor = successor->parent;
+						}
+						successor->parent->l_child = nullptr;
+						successor->parent = nullptr;
+						if (nodeToBeDeleted == root) {
+							root = nodeToBeDeleted;
+							new_successor = root;
+						}
+						leftHeightUpdate = new_successor->l_child;
+						rightHeightUpdate = new_successor->r_child;
+					}
+				}
+				//By this point we have deleted a node and have leftHeightUpdate and rightHeightUpdate values
+				//cout << "NodetoBeDeleted is accomplished.\n";
+			}
+			//cout << "performing common steps i.e lchild and rchild height upgrade\n";
+			if (leftHeightUpdate == nullptr)
+			{
+				if (rightHeightUpdate != nullptr) {
+					if (rightHeightUpdate->height >= 2) {
+						//then we have to perform rotation again... It will be right skewed
+						if (rightHeightUpdate->l_child->height > rightHeightUpdate->r_child->height) {
+							//it is RL violation
+							R_Rotate(ref->r_child);
+							L_Rotate(ref);
+						}
+						else {
+							//RR violation
+							L_Rotate(ref);
+						}
+					}
+				}
+
+			}
+			if (rightHeightUpdate == nullptr)
+			{
+				if (leftHeightUpdate != nullptr) {
+					if (leftHeightUpdate->height >= 2) {
+						//then we have to perform rotation again... It will be left skewed
+						if (leftHeightUpdate->l_child->height >= leftHeightUpdate->r_child->height) {
+							//it is LL violation
+							R_Rotate(ref);
+						}
+						else {
+							//LR violation
+							L_Rotate(ref->l_child);
+							R_Rotate(ref);
+						}
+					}
+				}
+
+			}
+			while (leftHeightUpdate != nullptr) {
+				if (leftHeightUpdate->l_child != nullptr && leftHeightUpdate->r_child != nullptr) {
+					if (leftHeightUpdate->l_child->height >= leftHeightUpdate->r_child->height) {
+						leftHeightUpdate = leftHeightUpdate->l_child;
+					}
+					else {
+						leftHeightUpdate = leftHeightUpdate->r_child;
+					}
+				}
+				else if (leftHeightUpdate->l_child != nullptr && leftHeightUpdate->r_child == nullptr) {
+					leftHeightUpdate = leftHeightUpdate->l_child;
+				}
+				else if (leftHeightUpdate->l_child == nullptr && leftHeightUpdate->r_child != nullptr) {
+					leftHeightUpdate = leftHeightUpdate->r_child;
+				}
+				else {//This means that the node is leaf node
+					leftHeightUpdate->height = 1;
+					break;
+				}
+			}
+			//getting the point from which we need to update right side heights
+			while (rightHeightUpdate != nullptr) {
+				if (rightHeightUpdate->l_child != nullptr && rightHeightUpdate->r_child != nullptr) {
+					if (rightHeightUpdate->l_child->height >= rightHeightUpdate->r_child->height) {
+						rightHeightUpdate = rightHeightUpdate->l_child;
+					}
+					else {
+						rightHeightUpdate = rightHeightUpdate->r_child;
+					}
+				}
+				else if (rightHeightUpdate->l_child != nullptr && rightHeightUpdate->r_child == nullptr) {
+					rightHeightUpdate = rightHeightUpdate->l_child;
+				}
+				else if (rightHeightUpdate->l_child == nullptr && rightHeightUpdate->r_child != nullptr) {
+					rightHeightUpdate = rightHeightUpdate->r_child;
+				}
+				else {//This means that the node is leaf node
+					rightHeightUpdate->height = 1;
+					break;
+				}
+			}
+			//now we have to leaf pointers for both leftHeightUpdate and rightHeightUpdate
+			if (leftHeightUpdate != nullptr)
+				actionNode1 = height_update(leftHeightUpdate);
+			if (rightHeightUpdate != nullptr)
+				actionNode2 = height_update(rightHeightUpdate);
+			while (true) {
+				if (actionNode1.first == nullptr && actionNode2.first == nullptr) {
+					//This means that the tree is stable
+					return;
+				}
+				else {
+					//This means that the tree is now unstable because of the delete operation
+					if (actionNode1.first != nullptr) {//This means violation has occured
+						if (actionNode1.second == 1) {//RR
+							L_Rotate(actionNode1.first);
+						}
+						else if (actionNode1.second == 2) {//RL
+							R_Rotate(actionNode1.first->r_child);
+							L_Rotate(actionNode1.first);
+						}
+						else if (actionNode1.second == 3) {//LL
+							R_Rotate(actionNode1.first);
+
+						}
+						else {//LR
+							L_Rotate(actionNode1.first->l_child);
+							R_Rotate(actionNode1.first);
+						}//
+						//Basically I am calling one of the rotate functions and then updating as best as i can
+						if (actionNode1.first == root) {
+							leftHeightUpdate = root->l_child;
+							rightHeightUpdate = root->r_child;
+						}
+						else {
+							leftHeightUpdate = actionNode1.first->parent->l_child;
+							rightHeightUpdate = actionNode1.first->parent->r_child;
+						}
+
+						while (leftHeightUpdate != nullptr) {
+							if (leftHeightUpdate->l_child != nullptr && leftHeightUpdate->r_child != nullptr) {
+								if (leftHeightUpdate->l_child->height >= leftHeightUpdate->r_child->height) {
+									leftHeightUpdate = leftHeightUpdate->l_child;
+								}
+								else {
+									leftHeightUpdate = leftHeightUpdate->r_child;
+								}
+							}
+							else if (leftHeightUpdate->l_child != nullptr && leftHeightUpdate->r_child == nullptr) {
+								leftHeightUpdate = leftHeightUpdate->l_child;
+							}
+							else if (leftHeightUpdate->l_child == nullptr && leftHeightUpdate->r_child != nullptr) {
+								leftHeightUpdate = leftHeightUpdate->r_child;
+							}
+							else {//This means that the node is leaf node
+								leftHeightUpdate->height = 1;
+								break;
+							}
+						}
+						//getting the point from which we need to update right side heights
+						while (rightHeightUpdate != nullptr) {
+							if (rightHeightUpdate->l_child != nullptr && rightHeightUpdate->r_child != nullptr) {
+								if (rightHeightUpdate->l_child->height >= rightHeightUpdate->r_child->height) {
+									rightHeightUpdate = rightHeightUpdate->l_child;
+								}
+								else {
+									rightHeightUpdate = rightHeightUpdate->r_child;
+								}
+							}
+							else if (rightHeightUpdate->l_child != nullptr && rightHeightUpdate->r_child == nullptr) {
+								rightHeightUpdate = rightHeightUpdate->l_child;
+							}
+							else if (rightHeightUpdate->l_child == nullptr && rightHeightUpdate->r_child != nullptr) {
+								rightHeightUpdate = rightHeightUpdate->r_child;
+							}
+							else {//This means that the node is leaf node
+								rightHeightUpdate->height = 1;
+								break;
+							}
+						}
+						if (leftHeightUpdate != nullptr)
+							actionNode1 = height_update(leftHeightUpdate);
+						if (rightHeightUpdate != nullptr)
+							actionNode2 = height_update(rightHeightUpdate);
+						continue;
+					}
+					else {
+						//the problem has occured with actionNoe2
+						if (actionNode2.first != nullptr) {//This means violation has occured
+							if (actionNode2.second == 1) {//RR
+								L_Rotate(actionNode2.first);
+							}
+							else if (actionNode2.second == 2) {//RL
+								R_Rotate(actionNode2.first->r_child);
+								L_Rotate(actionNode2.first);
+							}
+							else if (actionNode2.second == 3) {//LL
+								R_Rotate(actionNode2.first);
+
+							}
+							else {//LR
+								L_Rotate(actionNode2.first->l_child);
+								R_Rotate(actionNode2.first);
+							}//
+							//Basically I am calling one of the rotate functions and then updating as best as i can
+							if (actionNode2.first == root) {
+								leftHeightUpdate = root->l_child;
+								rightHeightUpdate = root->r_child;
+							}
+							else {
+								leftHeightUpdate = actionNode2.first->parent->l_child;
+								rightHeightUpdate = actionNode2.first->parent->r_child;
+							}
+							while (leftHeightUpdate != nullptr) {
+								if (leftHeightUpdate->l_child != nullptr && leftHeightUpdate->r_child != nullptr) {
+									if (leftHeightUpdate->l_child->height >= leftHeightUpdate->r_child->height) {
+										leftHeightUpdate = leftHeightUpdate->l_child;
+									}
+									else {
+										leftHeightUpdate = leftHeightUpdate->r_child;
+									}
+								}
+								else if (leftHeightUpdate->l_child != nullptr && leftHeightUpdate->r_child == nullptr) {
+									leftHeightUpdate = leftHeightUpdate->l_child;
+								}
+								else if (leftHeightUpdate->l_child == nullptr && leftHeightUpdate->r_child != nullptr) {
+									leftHeightUpdate = leftHeightUpdate->r_child;
+								}
+								else {//This means that the node is leaf node
+									leftHeightUpdate->height = 1;
+									break;
+								}
+							}
+							//getting the point from which we need to update right side heights
+							while (rightHeightUpdate != nullptr) {
+								if (rightHeightUpdate->l_child != nullptr && rightHeightUpdate->r_child != nullptr) {
+									if (rightHeightUpdate->l_child->height >= rightHeightUpdate->r_child->height) {
+										rightHeightUpdate = rightHeightUpdate->l_child;
+									}
+									else {
+										rightHeightUpdate = rightHeightUpdate->r_child;
+									}
+								}
+								else if (rightHeightUpdate->l_child != nullptr && rightHeightUpdate->r_child == nullptr) {
+									rightHeightUpdate = rightHeightUpdate->l_child;
+								}
+								else if (rightHeightUpdate->l_child == nullptr && rightHeightUpdate->r_child != nullptr) {
+									rightHeightUpdate = rightHeightUpdate->r_child;
+								}
+								else {//This means that the node is leaf node
+									rightHeightUpdate->height = 1;
+									break;
+								}
+							}if (leftHeightUpdate != nullptr)
+								actionNode1 = height_update(leftHeightUpdate);
+							if (rightHeightUpdate != nullptr)
+								actionNode2 = height_update(rightHeightUpdate);
+							continue;
+						}
+					}
+				}
+			}
+		}
+	}
+
+
+	void in_order_traversal(node* p) {
+		//such as 2 5 9 11 11 14 15 15 ...
+		//cout << "\nInside in_Order_Traversal function\n";
+		if (!p) return;
+		in_order_traversal(p->l_child);
+		cout << "(" << p->value << "," << p->height<<")  ";
+		in_order_traversal(p->r_child);
+		//cout << "\nexiting in_order_traversal";
+	}
+
+	pair<node*, int> height_update(node* p) {
+		/*
+		This function will be invoked by add_node and delete_node.
+		p points to the first node that we need to check for possible height update.  We then need to check possible height update toward root.
+		All nodes whose heights need to be updated will be performed in this function.
+		The function returns a pair.  If no imbalance is detected, the first of the pair will be nullptr; otherwise it will be the address of the action node.
+		The second of the pair will be 0 if no imbalance is detected; otherwise its value is 1,2,3,4 for RR RL, LL, and LR pattern, respectively.
+		*/
+		//cout << "\nInside height_update function\n";
+		node* actionNode = nullptr;
+		int child1Height, child2Height, violation; //I am maintaining everywhere that child1height is left height and child2Height is right child height
+		violation = 0;//giving violation default value
+		while (p != nullptr) {// i.e. while p has not reached nullptr i.e. roots parent
+			if (p != root) {
+				//cout << "P IS NOT ROOT\n";
+				if (p == p->parent->l_child) {//if p is left child we will have to access rightChild
+					child1Height = p->height;
+					if (p->parent->r_child == nullptr) {
+						child2Height = 0;
+					}
+					else {	//UPDATE THE HEIGHT FOR NON ROOT FUNCTION AND ALSO FIND CHILD1 and CHILD 2 HEIGHT
+						if (p->parent->r_child->l_child == nullptr && p->parent->r_child->r_child == nullptr) {//i.e if it is leaf node
+							p->parent->r_child->height = 1;
+						}
+						child2Height = p->parent->r_child->height;
+					}
+					p->parent->height = max(child1Height, child2Height) + 1;
+					p = p->parent;//traversing upwards to root
+				}
+				else {//This will be executed when p is the right child so we will have to access left child
+					child2Height = p->height;
+					if (p->parent->l_child == nullptr) {
+						child1Height = 0;
+					}
+					else {
+						if (p->parent->l_child->l_child == nullptr && p->parent->l_child->r_child == nullptr) {//i.e if it is leaf node
+							p->parent->l_child->height = 1;
+						}
+						child1Height = p->parent->l_child->height;
+					}
+					p->parent->height = max(child1Height, child2Height) + 1;
+					p = p->parent;//traversing upwards to root
+				}
+			}				//UPDATE TILL HERE BECAUSE IT IS PERFECT BELOW
+			else {//this will be executed when updation is happening keeping root pointer in mind
+				//We will do below to set and find child1Height
+				//cout << "P IS ROOT\n";
+				if (p->l_child != nullptr) {
+					child1Height = p->l_child->height;//By this point we have child1Height value
+				}
+				else {
+					child1Height = 0;
+				}
+				if (p->r_child != nullptr) {
+					//We will do below to set and find child2Height
+					child2Height = p->r_child->height;
+				}
+				else {
+					child2Height = 0;
+				}
+				p->height = max(child1Height, child2Height) + 1;
+				if (abs(child1Height - child2Height) <= 1)
+					p = p->parent;//traversing upwards to root
+			}
+			if (abs(child1Height - child2Height) > 1)
+			{
+				if (child1Height > child2Height) { //Action nodes left child is greater
+					if (p->l_child != nullptr) {
+						if (p->l_child->r_child != nullptr && p->l_child->l_child != nullptr) {
+
+							if (p->l_child->l_child->height >= p->l_child->r_child->height) { //LL Pattern
+								violation = 3;
+							}
+							else { //LR pattern
+								violation = 4;
+							}
+						}
+						else if (p->l_child->l_child != nullptr && p->l_child->r_child == nullptr) {//LL
+							violation = 3;
+						}
+						else if (p->l_child->l_child == nullptr && p->l_child->r_child != nullptr) {//LR
+							violation = 4;
+						}
+						else {
+							cout << "\nIt is showing Left violation but no if condition got through. CHeck code\n";
+						}
+					}
+					return { p,violation };
+				}
+				else { //Action Nodes right child is greater
+					if (p->r_child != nullptr) {
+						if (p->r_child->r_child != nullptr && p->r_child->l_child != nullptr) {
+							if (p->r_child->l_child->height > p->r_child->r_child->height) {//RL Pattern
+								violation = 2;
+							}
+							else { //RR
+								violation = 1;
+							}
+						}
+						else if (p->r_child->r_child == nullptr && p->r_child->l_child != nullptr) {
+							violation = 2; //RL pattern
+						}
+						else if (p->r_child->l_child == nullptr && p->r_child->r_child) {
+							violation = 1;//RR pattern
+						}
+						else {
+							cout << "\nIt is showing right skew viotion but no if condition got through. CHeck code\n";
+						}
+						//if violation has occured we will have to return the pair else continue;
+						//p = p->parent;
+					}
+					else {
+						violation = 2;
+					}
+
+					return { p,violation }; //P represents action node
+				}
+			}
+			else {
+				//if (p != root && p!=nullptr) {
+				//	p = p->parent;//traversing upwards to root
+				//}
+				//else {//if p is the root and no violation is found then we can just break
+				//	break;
+				//}
+
+				continue;
+			}
+		}
+		return { actionNode , violation }; //returning nullptr and 0 if no violation has occurred
+	}
+
+
+	void L_Rotate(node* p) {
+		//p points to the node at which the rotation will be performed.
+		//cout << "The program is inside L_Rotate function\n";
+		node* action = p;
+		node* lchild = p->l_child;
+		node* sameBranchChild;
+		node* branchShiftChild;
+		if (p->r_child != nullptr) {
+			sameBranchChild = p->r_child->r_child;
+			branchShiftChild = p->r_child->l_child;
+		}
+		else {
+			sameBranchChild = nullptr;
+			branchShiftChild = nullptr;
+		}
+		node* rchild = p->r_child;
+		if (p != root) { //Any internal node
+			if (p->parent->r_child == p) {//action node is on the right branch
+				p->parent->r_child = rchild;
+				rchild->parent = action->parent;
+				rchild->l_child = action;
+				action->parent = rchild;
+				rchild->r_child = sameBranchChild;
+				if (sameBranchChild != nullptr)
+					sameBranchChild->parent = rchild;
+				action->l_child = lchild;
+				if (lchild != nullptr)
+					lchild->parent = action;
+				action->r_child = branchShiftChild;
+				if (branchShiftChild != nullptr)
+					branchShiftChild->parent = action;
+			}
+			else {//action node is on left child
+				p->parent->l_child = rchild;
+				if (rchild != nullptr)
+					rchild->parent = action->parent;
+				if (rchild != nullptr)
+					rchild->l_child = action;
+				action->parent = rchild;
+				if (rchild != nullptr)
+					rchild->r_child = sameBranchChild;
+				if (sameBranchChild != nullptr)
+					sameBranchChild->parent = rchild;
+				action->l_child = lchild;
+				if (lchild != nullptr)
+					lchild->parent = action;
+				action->r_child = branchShiftChild;
+				if (branchShiftChild != nullptr)
+					branchShiftChild->parent = action;
+			}
+		}
+		else {//This will mean that the action node is the root node
+			root = rchild;
+			rchild->parent = nullptr;
+			rchild->l_child = action;
+			action->parent = rchild;
+			rchild->r_child = sameBranchChild;
+			if (sameBranchChild != nullptr)
+				sameBranchChild->parent = rchild;
+			action->l_child = lchild;
+			if (lchild != nullptr)
+				lchild->parent = action;
+			action->r_child = branchShiftChild;
+			if (branchShiftChild != nullptr)
+				branchShiftChild->parent = action;
+		}
+		//By this point the rotations are completed. I will now call the height update function on the branches which are moved/rotated
+		node* leftHeightUpdate, * rightHeightUpdate;
+		//1st i will perform the height update for the action child
+		leftHeightUpdate = root;
+		rightHeightUpdate = root;
+		while (leftHeightUpdate != nullptr) {
+			if (leftHeightUpdate->l_child != nullptr && leftHeightUpdate->r_child != nullptr) {
+				if (leftHeightUpdate->l_child->height > leftHeightUpdate->r_child->height) {	//Writing some fuck all code here. If things get screwed up delete upto this point
+					leftHeightUpdate = leftHeightUpdate->l_child;
+				}
+				else {
+					leftHeightUpdate = leftHeightUpdate->r_child;
+				}
+			}
+			else if (leftHeightUpdate->l_child != nullptr && leftHeightUpdate->r_child == nullptr) {
+				leftHeightUpdate = leftHeightUpdate->l_child;
+			}
+			else if (leftHeightUpdate->l_child == nullptr && leftHeightUpdate->r_child != nullptr) {
+				leftHeightUpdate = leftHeightUpdate->r_child;
+			}
+			else {//This means that the node is leaf node
+				leftHeightUpdate->height = 1;
+				break;
+			}
+		}
+		//getting the point from which we need to update right side heights
+		while (rightHeightUpdate != nullptr) {
+			if (rightHeightUpdate->l_child != nullptr && rightHeightUpdate->r_child != nullptr) {
+				if (rightHeightUpdate->l_child->height > rightHeightUpdate->r_child->height) {
+					rightHeightUpdate = rightHeightUpdate->l_child;
+				}
+				else {
+					rightHeightUpdate = rightHeightUpdate->r_child;
+				}
+			}
+			else if (rightHeightUpdate->l_child != nullptr && rightHeightUpdate->r_child == nullptr) {
+				rightHeightUpdate = rightHeightUpdate->l_child;
+			}
+			else if (rightHeightUpdate->l_child == nullptr && rightHeightUpdate->r_child != nullptr) {
+				rightHeightUpdate = rightHeightUpdate->r_child;
+			}
+			else {//This means that the node is leaf node
+				rightHeightUpdate->height = 1;
+				break;
+			}
+		}
+		if (leftHeightUpdate != nullptr)
+			height_update(leftHeightUpdate);
+		if (rightHeightUpdate != nullptr)
+			height_update(rightHeightUpdate);
+
+	}
+
+	void R_Rotate(node* p) {
+		//p points to the node at which the rotation will be performed.
+		//first i need to find out if p is the left child or right child
+		node* action = p;
+		node* lchild = p->l_child;
+		node* sameBranchChild;
+		if (p->l_child == nullptr) {
+			sameBranchChild = nullptr;
+		}
+		else {
+			sameBranchChild = p->l_child->l_child;
+		}
+
+		node* branchShiftChild;
+		if (p->l_child == nullptr) {
+			branchShiftChild = nullptr;
+		}
+		else {
+			branchShiftChild = p->l_child->r_child;
+		}
+		node* rchild = p->r_child;
+		//cout << "The program is inside R_Rotate function\n";
+		if (p != root) {//i.e rotation is happening anywhere else apart from the root node
+			if (p->parent->r_child == p) {//if the action node is on the right branch
+				p->parent->r_child = lchild;
+				if (lchild != nullptr)
+					lchild->parent = action->parent;
+				if (lchild != nullptr)
+					lchild->r_child = action;
+				action->parent = lchild;
+				if (lchild != nullptr)
+					lchild->l_child = sameBranchChild;
+				if (sameBranchChild != nullptr)
+					sameBranchChild->parent = lchild;
+				action->l_child = branchShiftChild;
+				if (branchShiftChild != nullptr)
+					branchShiftChild->parent = action;
+				action->r_child = rchild;
+				if (rchild != nullptr)
+					rchild->parent = action;
+			}
+			else {//else the action node will be on the left branch
+				p->parent->l_child = lchild;
+				lchild->parent = action->parent;
+				lchild->r_child = action;
+				action->parent = lchild;
+				lchild->l_child = sameBranchChild;
+				if (sameBranchChild != nullptr)
+					sameBranchChild->parent = lchild;
+				action->l_child = branchShiftChild;
+				if (branchShiftChild != nullptr)
+					branchShiftChild->parent = action;
+				action->r_child = rchild;
+				if (rchild != nullptr)
+					rchild->parent = action;
+			}
+		}
+		else {//This will mean that the action node is the root node
+			root = lchild;
+			lchild->parent = nullptr;
+			lchild->l_child = sameBranchChild;
+			if (sameBranchChild != nullptr)
+				sameBranchChild->parent = lchild;
+			lchild->r_child = action;
+			action->parent = lchild;
+			action->l_child = branchShiftChild;
+			if (branchShiftChild != nullptr)
+				branchShiftChild->parent = action;
+			action->r_child = rchild;
+			if (rchild != nullptr)
+				rchild->parent = action;
+		}
+		//By this point the rotations are completed. I will now call the height update function on the branches which are moved/rotated
+		node* leftHeightUpdate, * rightHeightUpdate;
+		//1st i will perform the height update for the action child
+		leftHeightUpdate = root;
+		rightHeightUpdate = root;
+		while (leftHeightUpdate != nullptr) {
+			if (leftHeightUpdate->l_child != nullptr && leftHeightUpdate->r_child != nullptr) {
+				if (leftHeightUpdate->l_child->height > leftHeightUpdate->r_child->height) {	//Writing some fuck all code here. If things get screwed up delete upto this point
+					leftHeightUpdate = leftHeightUpdate->l_child;
+				}
+				else {
+					leftHeightUpdate = leftHeightUpdate->r_child;
+				}
+			}
+			else if (leftHeightUpdate->l_child != nullptr && leftHeightUpdate->r_child == nullptr) {
+				leftHeightUpdate = leftHeightUpdate->l_child;
+			}
+			else if (leftHeightUpdate->l_child == nullptr && leftHeightUpdate->r_child != nullptr) {
+				leftHeightUpdate = leftHeightUpdate->r_child;
+			}
+			else {//This means that the node is leaf node
+				leftHeightUpdate->height = 1;
+				break;
+			}
+		}
+		//getting the point from which we need to update right side heights
+		while (rightHeightUpdate != nullptr) {
+			if (rightHeightUpdate->l_child != nullptr && rightHeightUpdate->r_child != nullptr) {
+				if (rightHeightUpdate->l_child->height > rightHeightUpdate->r_child->height) {
+					rightHeightUpdate = rightHeightUpdate->l_child;
+				}
+				else {
+					rightHeightUpdate = rightHeightUpdate->r_child;
+				}
+			}
+			else if (rightHeightUpdate->l_child != nullptr && rightHeightUpdate->r_child == nullptr) {
+				rightHeightUpdate = rightHeightUpdate->l_child;
+			}
+			else if (rightHeightUpdate->l_child == nullptr && rightHeightUpdate->r_child != nullptr) {
+				rightHeightUpdate = rightHeightUpdate->r_child;
+			}
+			else {//This means that the node is leaf node
+				rightHeightUpdate->height = 1;
+				break;
+			}
+		}
+		if (leftHeightUpdate != nullptr)
+			height_update(leftHeightUpdate);
+		if (rightHeightUpdate != nullptr)
+			height_update(rightHeightUpdate);
+	}
+
+
+};
+
+int main() {
+avl_tree t1;
+        t1.add_node(75);
+        t1.add_node(50);
+        t1.add_node(25);
+        t1.add_node(15);
+        t1.add_node(30);
+        t1.add_node(60);
+        t1.add_node(80);
+        t1.add_node(5);
+        t1.add_node(10);
+        cout << "\n Add 5 points" << endl;
+        t1.in_order_traversal(t1.root);
+        t1.add_node(27);
+        t1.add_node(55);
+        t1.add_node(1);
+        cout << endl;
+        t1.in_order_traversal(t1.root);
+        t1.add_node(10);
+        cout << "\n Add 5 points" << endl;
+        t1.in_order_traversal(t1.root);
+        t1.delete_node(75);
+        cout << "\n Delete 15 points" << endl;
+        t1.in_order_traversal(t1.root);
+        t1.add_node(12);
+        t1.add_node(12);    
+        cout << "\n Add 5 points" << endl;
+        t1.in_order_traversal(t1.root);
+        cout << endl;
+        avl_tree t2;
+        t2.add_node(75);
+        t2.add_node(50);
+        t2.add_node(25);
+        t2.add_node(15);
+        t2.add_node(30);
+        t2.add_node(60);
+        t2.add_node(80);
+        t2.add_node(5);
+        t2.add_node(10);
+        t2.add_node(27);
+        t2.add_node(55);
+        t2.add_node(1);
+        t2.delete_node(75);
+        t2.delete_node(1);
+        t2.in_order_traversal(t2.root);
+        t2.delete_node(25);
+        cout << "\n Delete 15 points" << endl;
+        t2.in_order_traversal(t2.root);
+        cout << endl;
+        avl_tree t3;
+        t3.add_node(1);
+        t3.add_node(1);
+        t3.add_node(1);
+        t3.add_node(1);
+        t3.add_node(1);
+        cout << endl;
+        t3.in_order_traversal(t3.root);
+        t3.delete_node(1);
+        cout << "\n Delete 10 points" << endl;
+        t3.in_order_traversal(t3.root);
+
+        getchar();
+        getchar();
+        return 0;
+
+}
+
+//The following is an example showing how to return a pair.
+/*
+#include <iostream>
+using namespace std;
+
+pair<int *, int> f1(){
+	return { new int {10}, 10 };
+}
+int main() {
+	cout << *f1().first << " " << f1().second << endl;
+	getchar();
+	getchar();
+	return 0;
+
+	Test cases for the tree traversal
+	t1.add_node(45);
+	t1.in_order_traversal(t1.root);
+	t1.delete_node(45);
+	t1.in_order_traversal(t1.root);
+	t1.add_node(50);
+	t1.add_node(46);
+	t1.add_node(30);
+	t1.add_node(34);
+	t1.in_order_traversal(t1.root);
+	t1.delete_node(48);
+	t1.in_order_traversal(t1.root);
+}
+*/
